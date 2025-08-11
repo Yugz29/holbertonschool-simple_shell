@@ -4,29 +4,26 @@
 
 int main(void)
 {
-    char buffer[1024]; //1024 = octets, typical size for a buffer
-    ssize_t read_bytes, i;
+    char *line = NULL; // user input stock
+    size_t len = 0; // contains the size allocated for line
+    ssize_t read; // number of characters read or -1
 
     while (1)
     {
-        write(STDOUT_FILENO, "> ", 2);
-        read_bytes = read(STDIN_FILENO, buffer, 1024);
+        printf("> ");
+        read = getline(&line, &len, stdin);
 
-        if (read_bytes == 0) // for CTRL+D (EOF)
-            break;
-
-        if (read_bytes == -1) // if there is an error
-            perror("error : ");
-
-        buffer[read_bytes] = '\0'; // add null bytes at the end if it's ok
-
-        for (i = 0; buffer[i] != '\0'; i++) // loop for replace '\n' by '\0'
+        if (read == -1) // EOF or error
         {
-            if (buffer[i] == '\n')
-            {
-                buffer[i] = '\0';
-                break;
-            }
+            printf("\n");
+            break;
         }
+
+        // Remove the \n at the end
+        if (line[read - 1] == '\n')
+            line[read - 1] = '\0';
+
     }
+    free(line);
+    return (0);
 }
