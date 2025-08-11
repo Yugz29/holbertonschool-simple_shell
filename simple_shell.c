@@ -4,7 +4,7 @@
 
 int main(void)
 {
-    char *line = NULL; // user input stock
+    char *line = NULL; // stock the user input
     size_t len = 0; // contains the size allocated for line
     ssize_t read; // number of characters read or -1
 
