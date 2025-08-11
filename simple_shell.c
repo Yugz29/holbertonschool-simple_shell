@@ -5,7 +5,7 @@
 int main(void)
 {
     char buffer[1024]; //1024 = octets, typical size for a buffer
-    ssize_t read_bytes;
+    ssize_t read_bytes, i;
 
     while (1)
     {
@@ -20,5 +20,13 @@ int main(void)
 
         buffer[read_bytes] = '\0'; // add null bytes at the end if it's ok
 
+        for (i = 0; buffer[i] != '\0'; i++) // loop for replace '\n' by '\0'
+        {
+            if (buffer[i] == '\n')
+            {
+                buffer[i] = '\0';
+                break;
+            }
+        }
     }
 }
