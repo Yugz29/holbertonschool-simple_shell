@@ -1,0 +1,38 @@
+# VS Code settings folder
+.vscode/
+
+# macOS Finder files
+.DS_Store
+
+# Compiled object files
+*.o
+
+# Executables
+a.out
+*.exe
+*.out
+
+# Backup files
+*~
+*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Compiled libraries
+*.so
+*.a
+*.dylib
+
+# Core dumps
+core
+
+# Other
+*.class
+*.jar
+*.pyc
+
+# Ignore all *-main.c files
+*-main.c
