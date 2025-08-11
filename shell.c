@@ -15,7 +15,7 @@ int main(void)
         if (read_bytes == 0) // for CTRL+D (EOF)
             break;
 
-        if (read_bytes == -1)
+        if (read_bytes == -1) // if there is an error
             perror("error : ");
 
         buffer[read_bytes] = '\0'; // add null bytes at the end if it's ok
