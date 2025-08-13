@@ -52,7 +52,7 @@ int main(void)
         else if (pid == 0)
         {
             char *argv[2];
-            argv[0] = line;
+            argv[0] = cmd;
             argv[1] = NULL;
 
             execve(argv[0], argv, environ);
@@ -62,7 +62,10 @@ int main(void)
         }
 
         else
-            (void)waitpid(pid, NULL, 0);
+        {
+            if (waitpid(pid, NULL, 0) == -1)
+                perror("waitpid");
+        }
 
     }
     free(line);
