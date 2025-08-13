@@ -5,15 +5,19 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <errno.h>
+
 extern char **environ;
+
 int main(void)
 {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
     pid_t pid;
-    char *cmd;
-    char *extra;
+    char *token;
+    char *argv[1024]; /* assez grand pour contenir une ligne découpée */
+    int i;
+
     while (1)
     {
         if (isatty(STDIN_FILENO))
@@ -25,22 +29,25 @@ int main(void)
         if (read == -1)
         {
             if (isatty(STDIN_FILENO))
-            {
                 putchar('\n');
-            }
             break;
         }
         if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
-        cmd = strtok(line, " \t");
-        if (cmd == NULL || *cmd == '\0')
-            continue;
-        extra = strtok(NULL, " \t");
-        if (extra != NULL)
+
+        /* découpage de la ligne en tokens */
+        i = 0;
+        token = strtok(line, " \t");
+        while (token != NULL && i < 1023)
         {
-            fprintf(stderr, "%s\n", line);
-            continue;
+            argv[i++] = token;
+            token = strtok(NULL, " \t");
         }
+        argv[i] = NULL;
+
+        if (argv[0] == NULL)
+            continue;
+
         pid = fork();
         if (pid == -1)
         {
@@ -49,11 +56,8 @@ int main(void)
         }
         else if (pid == 0)
         {
-            char *argv[2];
-            argv[0] = cmd;
-            argv[1] = NULL;
             execve(argv[0], argv, environ);
-            perror("./shell");
+            perror(argv[0]);
             exit(EXIT_FAILURE);
         }
         else
