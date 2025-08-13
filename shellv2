@@ -5,23 +5,28 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <errno.h>
+
 extern char **environ;
+
 int main(void)
 {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
     pid_t pid;
-    char *cmd;
-    char *extra;
+    char *argv[64];
+    int i = 0;
+    char *token;
+
     while (1)
     {
         if (isatty(STDIN_FILENO))
         {
             printf("#cisfun$ ");
             fflush(stdout);
-        }
+        }   
         read = getline(&line, &len, stdin);
+
         if (read == -1)
         {
             if (isatty(STDIN_FILENO))
@@ -30,37 +35,45 @@ int main(void)
             }
             break;
         }
+
         if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
-        cmd = strtok(line, " \t");
-        if (cmd == NULL || *cmd == '\0')
+
+        if (line[0] == '\0')
             continue;
-        extra = strtok(NULL, " \t");
-        if (extra != NULL)
+        
+        i = 0;
+        token = strtok(line, " \t");
+        
+        while (token != NULL && i < 63)
         {
-            fprintf(stderr, "%s", "./shell: No such file or directory\n");
-            continue;
+            argv[i++] = token;
+            token = strtok(NULL, " \t");
         }
+        
+        argv[i++] = NULL;
         pid = fork();
+
         if (pid == -1)
         {
             perror("./shell");
             continue;
         }
+
         else if (pid == 0)
         {
-            char *argv[2];
-            argv[0] = cmd;
-            argv[1] = NULL;
             execve(argv[0], argv, environ);
+
             perror("./shell");
             exit(EXIT_FAILURE);
         }
+
         else
         {
             if (waitpid(pid, NULL, 0) == -1)
                 perror("waitpid");
         }
+
     }
     free(line);
     return (0);
