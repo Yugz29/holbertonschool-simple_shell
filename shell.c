@@ -1,55 +1,53 @@
-#include <unistd.h>  // for write()
-#include <stdlib.h>  // for exit(), malloc(), free()
-#include <stdio.h>   // for perror()
-#include <sys/types.h>  // for pid_t
-#include <sys/wait.h>  // for wait()
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 extern char **environ;
 
 int main(void)
 {
-    char *line = NULL; // stock the user input
-    size_t len = 0; // contains the size allocated for line
-    ssize_t read; // number of characters read or -1
-    pid_t pid; // process id for fork()
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    pid_t pid;
 
     while (1)
     {
         printf("> ");
         read = getline(&line, &len, stdin);
 
-        if (read == -1) // EOF or error
+        if (read == -1)
         {
             printf("\n");
             break;
         }
 
-        // replace the \n at the end
         if (line[read - 1] == '\n')
             line[read - 1] = '\0';
 
-        pid = fork(); // create a child process
+        pid = fork();
 
-        if (pid == -1) // fork failed
+        if (pid == -1)
         {
             printf("\n");
             break;
         }
 
-        else if (pid == 0) // child process
+        else if (pid == 0)
         {
             char *argv[2];
             argv[0] = line;
             argv[1] = NULL;
 
-            execve(argv[0], argv, environ); // replace child process with
-                                            // new program
+            execve(argv[0], argv, environ);
 
-            perror("./shell"); // if execve fails, print error message
+            perror("./shell");
             exit(EXIT_FAILURE);
         }
 
-        else // parent process
+        else
             wait(NULL);
 
     }
