@@ -8,33 +8,6 @@
 
 extern char **environ;
 
-char *find_in_path(const char *cmd)
-{
-    char *path_env = getenv("PATH");
-    char *path_copy, *dir, full_path[1024];
-
-    if (!path_env)
-        return NULL;
-
-    path_copy = strdup(path_env);
-    if (!path_copy)
-        return NULL;
-
-    dir = strtok(path_copy, ":");
-    while (dir)
-    {
-        snprintf(full_path, sizeof(full_path), "%s/%s", dir, cmd);
-        if (access(full_path, X_OK) == 0)
-        {
-            free(path_copy);
-            return strdup(full_path);
-        }
-        dir = strtok(NULL, ":");
-    }
-    free(path_copy);
-    return NULL;
-}
-
 int main(void)
 {
     char *line = NULL;
@@ -82,21 +55,7 @@ int main(void)
         }
         else if (pid == 0)
         {
-            char *cmd_path = NULL;
-
-            if (strchr(argv[0], '/'))
-            {
-                execve(argv[0], argv, environ);
-            }
-            else
-            {
-                cmd_path = find_in_path(argv[0]);
-                if (cmd_path)
-                {
-                    execve(cmd_path, argv, environ);
-                    free(cmd_path);
-                }
-            }
+            execve(argv[0], argv, environ);
             perror(argv[0]);
             exit(EXIT_FAILURE);
         }
@@ -107,5 +66,5 @@ int main(void)
         }
     }
     free(line);
-    return 0;
+    return (0);
 }
