@@ -38,7 +38,7 @@ int main(void)
         extra = strtok(NULL, " \t");
         if (extra != NULL)
         {
-            fprintf(stderr, "%s", "./shell: No such file or directory\n");
+            fprintf(stderr, "%s\n", line);
             continue;
         }
         pid = fork();
