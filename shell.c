@@ -37,8 +37,7 @@ int main(void)
         if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
 
-        cmd = strtok(line, " \t");
-        if (cmd == NULL || *cmd == '\0')
+        if (line[0] == '\0')
             continue;
 
         pid = fork();
