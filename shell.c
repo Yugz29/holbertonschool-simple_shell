@@ -15,12 +15,19 @@ int main(void)
 
     while (1)
     {
-        printf("> ");
+        if (isatty(STDIN_FILENO))
+        {
+            printf("#cisfun$ ");
+            fflush(stdout);
+        }   
         read = getline(&line, &len, stdin);
 
         if (read == -1)
         {
-            printf("\n");
+            if (isatty(STDIN_FILENO))
+            {
+                printf("\n");
+            }
             break;
         }
 
@@ -48,7 +55,7 @@ int main(void)
         }
 
         else
-            wait(NULL);
+            (void)waitpid(pid, NULL, 0);
 
     }
     free(line);
