@@ -11,7 +11,8 @@ extern char **environ;
 char *find_in_path(const char *cmd)
 {
     char *path_env = getenv("PATH");
-    char *path_copy, *dir, full_path[1024];
+    char *path_copy, *dir;
+    static char full_path[1024];
 
     if (!path_env)
         return NULL;
@@ -27,7 +28,7 @@ char *find_in_path(const char *cmd)
         if (access(full_path, X_OK) == 0)
         {
             free(path_copy);
-            return strdup(full_path);
+            return full_path;
         }
         dir = strtok(NULL, ":");
     }
@@ -94,10 +95,9 @@ int main(void)
                 if (cmd_path)
                 {
                     execve(cmd_path, argv, environ);
-                    free(cmd_path);
                 }
             }
-            perror(argv[0]);
+            fprintf(stderr, "%s: command not found\n", argv[0]);
             exit(EXIT_FAILURE);
         }
         else
