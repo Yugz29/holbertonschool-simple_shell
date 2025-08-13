@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <string.h>
+#include <errno.h>
 
 extern char **environ;
 
@@ -12,6 +14,7 @@ int main(void)
     size_t len = 0;
     ssize_t read;
     pid_t pid;
+    char *cmd;
 
     while (1)
     {
@@ -26,20 +29,24 @@ int main(void)
         {
             if (isatty(STDIN_FILENO))
             {
-                printf("\n");
+                putchar('\n');
             }
             break;
         }
 
-        if (line[read - 1] == '\n')
+        if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
+
+        cmd = strtok(line, " \t");
+        if (cmd == NULL || *cmd == '\0')
+            continue;
 
         pid = fork();
 
         if (pid == -1)
         {
-            printf("\n");
-            break;
+            perror("./shell");
+            continue;
         }
 
         else if (pid == 0)
