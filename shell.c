@@ -42,6 +42,7 @@ int main(void)
         if (line[0] == '\0')
             continue;
         
+        i = 0;
         token = strtok(line, " \t");
         
         while (token != NULL && i < 63)
