@@ -14,8 +14,7 @@ int main(void)
     size_t len = 0;
     ssize_t read;
     pid_t pid;
-    char *cmd;
-    char *extra;
+    char *cmd = NULL;
 
     while (1)
     {
@@ -41,13 +40,7 @@ int main(void)
         cmd = strtok(line, " \t");
         if (cmd == NULL || *cmd == '\0')
             continue;
-
-        extra = strtok(NULL, " \t");
-        if (extra != NULL)
-        {
-            fprintf(stderr, "%s", "./shell: No such file or directory\n");
-            continue;
-        }
+        
         pid = fork();
 
         if (pid == -1)
