@@ -15,7 +15,7 @@ int main(void)
     ssize_t read;
     pid_t pid;
     char *token;
-    char *argv[1024]; /* assez grand pour contenir une ligne découpée */
+    char *argv[1024];
     int i;
 
     while (1)
@@ -35,7 +35,6 @@ int main(void)
         if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
 
-        /* découpage de la ligne en tokens */
         i = 0;
         token = strtok(line, " \t");
         while (token != NULL && i < 1023)
