@@ -14,7 +14,9 @@ int main(void)
     size_t len = 0;
     ssize_t read;
     pid_t pid;
-    char *cmd = NULL;
+    char *argv[64];
+    int i = 0;
+    char *token;
 
     while (1)
     {
@@ -37,10 +39,18 @@ int main(void)
         if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
 
-        cmd = strtok(line, " \t");
-        if (cmd == NULL || *cmd == '\0')
+        if (line[0] == '\0')
             continue;
         
+        token = strtok(line, " \t");
+        
+        while (token != NULL && i < 63)
+        {
+            argv[i++] = token;
+            token = strtok(NULL, " \t");
+        }
+        
+        argv[i++] = NULL;
         pid = fork();
 
         if (pid == -1)
@@ -51,10 +61,6 @@ int main(void)
 
         else if (pid == 0)
         {
-            char *argv[2];
-            argv[0] = cmd;
-            argv[1] = NULL;
-
             execve(argv[0], argv, environ);
 
             perror("./shell");
