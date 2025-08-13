@@ -14,7 +14,6 @@ int main(void)
     size_t len = 0;
     ssize_t read;
     pid_t pid;
-    char *cmd;
 
     while (1)
     {
@@ -51,7 +50,7 @@ int main(void)
         else if (pid == 0)
         {
             char *argv[2];
-            argv[0] = cmd;
+            argv[0] = line;
             argv[1] = NULL;
 
             execve(argv[0], argv, environ);
