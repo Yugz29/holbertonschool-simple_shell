@@ -1,0 +1,42 @@
+#!/bin/bash
+
+SHELL_PROG=./hsh
+
+run_test() {
+    local cmd="$1"
+    echo ">>> Test: \"$cmd\""
+    echo "$cmd" | $SHELL_PROG
+    echo "Code de retour = $?"
+    echo "-----------------------------"
+}
+
+# Tests de base
+run_test "ls"
+run_test "/bin/ls"
+run_test "foobar"
+run_test "/bin/false"
+run_test "/bin/true"
+
+# Tests avec exit
+run_test "exit"
+run_test "exit 42"
+
+# Tests avec env
+run_test "env | head -n 3"
+
+# Tests avec chemin relatif (devrait échouer)
+run_test "./hsh --version"
+
+# Tests avec espaces / tabs
+run_test "       "
+run_test "    ls     -l   "
+
+# Tests depuis un fichier
+echo "/bin/ls" > testfile
+echo "/bin/false" >> testfile
+echo "foobar" >> testfile
+
+echo ">>> Test depuis fichier :"
+cat testfile | $SHELL_PROG
+echo "Code retour = $?"
+echo "-----------------------------"

@@ -1,17 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <signal.h>
-
-extern char **environ;
-
-/* --- Prototypes --- */
-char *find_in_path(const char *cmd);
-int errno_to_exit(int err);
+#include "shell.h"
 
 int main(void)
 {
@@ -19,11 +6,9 @@ int main(void)
     size_t len = 0;
     ssize_t n;
     pid_t pid;
-    int i;          /* déclaré en haut */
-    int status;     /* pour builtin exit */
-    char *end;      /* pour strtol */
-    long v;         
-    char *cmd;      /* pour exec */
+    int i;
+    int status = 0;
+    char *cmd;
 
     signal(SIGINT, SIG_IGN);
 
@@ -41,6 +26,7 @@ int main(void)
             if (isatty(STDIN_FILENO)) putchar('\n');
             break;
         }
+
         if (n > 0 && line[n - 1] == '\n')
             line[n - 1] = 0;
 
@@ -52,27 +38,28 @@ int main(void)
             tok = strtok(NULL, " \t");
         }
         argv[i] = NULL;
+
         if (!argv[0])
             continue;
 
-        /* --- builtins --- */
+        /* --- Builtin: exit --- */
         if (!strcmp(argv[0], "exit"))
         {
-            status = 0;
             if (argv[1])
             {
-                v = strtol(argv[1], &end, 10);
-                if (*end)
+                if (!is_number(argv[1]))
                 {
                     fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
                     free(line);
                     exit(2);
                 }
-                status = (unsigned char)v;
+                status = parse_exit_status(argv[1]);
             }
             free(line);
             exit(status);
         }
+
+        /* --- Builtin: cd --- */
         if (!strcmp(argv[0], "cd"))
         {
             if (chdir(argv[1] ? argv[1] : getenv("HOME")) != 0)
@@ -87,6 +74,7 @@ int main(void)
             perror("./hsh");
             continue;
         }
+
         if (pid == 0)
         {
             signal(SIGINT, SIG_DFL);
@@ -97,6 +85,7 @@ int main(void)
                 perror(argv[0]);
                 _exit(errno_to_exit(errno));
             }
+
             cmd = find_in_path(argv[0]);
             if (cmd)
             {
@@ -105,15 +94,28 @@ int main(void)
                 free(cmd);
                 _exit(errno_to_exit(errno));
             }
+
             fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
             _exit(127);
         }
         else
         {
-            if (waitpid(pid, NULL, 0) == -1)
+            int wstatus;
+
+            if (waitpid(pid, &wstatus, 0) == -1)
+            {
                 perror("waitpid");
+            }
+            else
+            {
+                if (WIFEXITED(wstatus))
+                    status = WEXITSTATUS(wstatus);
+                else
+                    status = 1;
+            }
         }
     }
+
     free(line);
-    return 0;
+    return status;
 }
