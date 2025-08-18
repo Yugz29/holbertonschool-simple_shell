@@ -34,7 +34,7 @@ char *find_in_path(const char *cmd)
         if (access(full_path, X_OK) == 0)
         {
             free(path_copy);
-            return strdup(full_path); /* <- malloc */
+            return strdup(full_path);
         }
         dir = strtok(NULL, ":");
     }
@@ -60,10 +60,9 @@ int main(void)
     char *token;
     char *argv[1024];
     int i;
-    char *cmd_path = NULL;
+    char *cmd_path;
+    char *dir;
 
-
-    /* Ignorer Ctrl+C dans le shell parent */
     signal(SIGINT, handle_sigint);
 
     while (1)
@@ -104,38 +103,49 @@ int main(void)
         }
         else if (strcmp(argv[0], "cd") == 0)
         {
-            char *dir = argv[1];
-
+            dir = argv[1];
             if (!dir)
-                dir = getenv("HOME"); /* cd sans argument => HOME */
+                dir = getenv("HOME");
 
             if (!dir || chdir(dir) != 0)
                 perror("cd");
 
-            continue; /* on ne fork pas pour cd */
+            continue;
         }
 
+        /* --- Vérification PATH et exécutable avant fork --- */
+        cmd_path = NULL;
         if (strchr(argv[0], '/'))
-            cmd_path = argv[0];
-        else
-            cmd_path = find_in_path(argv[0]);
-
-        if (!cmd_path)
         {
-            fprintf(stderr, "%s: command not found\n", argv[0]);
-            continue; /* pas de fork */
+            if (access(argv[0], X_OK) == 0)
+                cmd_path = argv[0];
+            else
+            {
+                fprintf(stderr, "%s: command not found\n", argv[0]);
+                continue;
+            }
+        }
+        else
+        {
+            cmd_path = find_in_path(argv[0]);
+            if (!cmd_path)
+            {
+                fprintf(stderr, "%s: command not found\n", argv[0]);
+                continue;
+            }
         }
 
-        /* --- Fork pour exécuter les autres commandes --- */
+        /* --- Fork pour exécuter --- */
         pid = fork();
         if (pid == -1)
         {
             perror("./shell");
+            if (cmd_path != argv[0])
+                free(cmd_path);
             continue;
         }
         else if (pid == 0)
         {
-            /* Restaurer le comportement normal de Ctrl+C dans l’enfant */
             signal(SIGINT, SIG_DFL);
             execve(cmd_path, argv, environ);
             perror(argv[0]);
