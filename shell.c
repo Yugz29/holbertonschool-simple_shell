@@ -8,7 +8,7 @@
 #include <signal.h>
 
 extern char **environ;
-int interactive = 0;
+int interactive = -1;
 
 /**
  * find_in_path - cherche un exécutable dans $PATH
@@ -58,7 +58,7 @@ void print_env(void)
 
 {
     int i;
-    
+
     for (i = 0; environ[i]; i++)
         puts(environ[i]);
 }
