@@ -53,20 +53,6 @@ void handle_sigint(int sig)
 }
 
 /**
- * print_env - prints environment variables
- */
-void print_env(void)
-{
-    int i = 0;
-
-    while (environ[i])
-    {
-        printf("%s\n", environ[i]);
-        i++;
-    }
-}
-
-/**
  * main - main function of simple shell
  * Return: 0 on success
  */
