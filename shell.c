@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 
 extern char **environ;
 
@@ -33,12 +34,21 @@ char *find_in_path(const char *cmd)
         if (access(full_path, X_OK) == 0)
         {
             free(path_copy);
-            return strdup(full_path); /* <- malloc ici */
+            return strdup(full_path); /* <- malloc */
         }
         dir = strtok(NULL, ":");
     }
     free(path_copy);
     return NULL;
+}
+
+/**
+ * handle_sigint - ignore Ctrl+C dans le shell
+ */
+void handle_sigint(int sig)
+{
+    (void)sig;
+    write(STDOUT_FILENO, "\n#cisfun$ ", 10);
 }
 
 int main(void)
@@ -51,6 +61,9 @@ int main(void)
     char *argv[1024];
     int i;
 
+    /* Ignorer Ctrl+C dans le shell parent */
+    signal(SIGINT, handle_sigint);
+
     while (1)
     {
         if (isatty(STDIN_FILENO))
@@ -58,6 +71,7 @@ int main(void)
             printf("#cisfun$ ");
             fflush(stdout);
         }
+
         read = getline(&line, &len, stdin);
         if (read == -1)
         {
@@ -83,18 +97,22 @@ int main(void)
         /* --- Commandes internes --- */
         if (strcmp(argv[0], "exit") == 0)
         {
-            break; /* quitte la boucle principale */
+            int status = 0;
+            if (argv[1] != NULL)
+                status = atoi(argv[1]); /* récupère le code retour */
+            free(line);
+            exit(status);
         }
         else if (strcmp(argv[0], "cd") == 0)
         {
-            if (argv[1] == NULL)
-            {
-                fprintf(stderr, "cd: missing argument\n");
-            }
-            else if (chdir(argv[1]) != 0)
-            {
+            char *dir = argv[1];
+
+            if (!dir)
+                dir = getenv("HOME"); /* cd sans argument => HOME */
+
+            if (!dir || chdir(dir) != 0)
                 perror("cd");
-            }
+
             continue; /* on ne fork pas pour cd */
         }
 
@@ -109,10 +127,13 @@ int main(void)
         {
             char *cmd_path = NULL;
 
+            /* Restaurer le comportement normal de Ctrl+C dans l’enfant */
+            signal(SIGINT, SIG_DFL);
+
             if (strchr(argv[0], '/'))
             {
                 execve(argv[0], argv, environ);
-                perror(argv[0]); /* affiche la vraie erreur */
+                perror(argv[0]);
             }
             else
             {
@@ -136,6 +157,7 @@ int main(void)
                 perror("waitpid");
         }
     }
+
     free(line);
     return 0;
 }
