@@ -97,9 +97,6 @@ int main(void)
         /* --- Commandes internes --- */
         if (strcmp(argv[0], "exit") == 0)
         {
-            int status = 0;
-            if (argv[1] != NULL)
-                status = atoi(argv[1]); /* récupère le code retour */
             free(line);
             exit(status);
         }
