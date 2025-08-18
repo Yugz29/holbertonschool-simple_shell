@@ -19,8 +19,6 @@ int errno_to_exit(int err);
 
 /**
  * find_in_path - cherche un exécutable dans $PATH
- * @cmd: nom de la commande
- * Return: chemin complet (malloc) ou NULL
  */
 char *find_in_path(const char *cmd)
 {
@@ -135,8 +133,8 @@ int main(int argc, char **argv)
     char *token;
     char *args[1024];
     int i;
-    unsigned int line_number = 0;   /* compteur de ligne */
-    char *argv0 = argv[0];          /* nom du shell pour messages d’erreur */
+    unsigned int line_number = 0;
+    char *argv0 = argv[0];
 
     (void)argc;
     signal(SIGINT, handle_sigint);
@@ -157,7 +155,7 @@ int main(int argc, char **argv)
             break;
         }
 
-        line_number++;  /* incrémenter à chaque ligne lue */
+        line_number++;
 
         if (readn > 0 && line[readn - 1] == '\n')
             line[readn - 1] = '\0';
@@ -182,7 +180,8 @@ int main(int argc, char **argv)
             {
                 if (!is_number(args[1]))
                 {
-                    fprintf(stderr, "exit: %s: numeric argument required\n", args[1]);
+                    fprintf(stderr, "%s: %d: exit: %s: numeric argument required\n",
+                            argv0, line_number, args[1]);
                     free(line);
                     exit(2);
                 }
@@ -229,7 +228,6 @@ int main(int argc, char **argv)
                 _exit(errno_to_exit(errno));
             }
 
-            /* pas trouvé dans PATH */
             fprintf(stderr, "%s: %d: %s: not found\n", argv0, line_number, args[0]);
             _exit(127);
         }
