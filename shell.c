@@ -126,16 +126,19 @@ int errno_to_exit(int err)
     return 126;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     char *line = NULL;
     size_t len = 0;
     ssize_t readn;
     pid_t pid;
     char *token;
-    char *argv[1024];
+    char *args[1024];
     int i;
+    unsigned int line_number = 0;   /* compteur de ligne */
+    char *argv0 = argv[0];          /* nom du shell pour messages d’erreur */
 
+    (void)argc;
     signal(SIGINT, handle_sigint);
 
     while (1)
@@ -154,44 +157,45 @@ int main(void)
             break;
         }
 
+        line_number++;  /* incrémenter à chaque ligne lue */
+
         if (readn > 0 && line[readn - 1] == '\n')
             line[readn - 1] = '\0';
 
         i = 0;
         token = strtok(line, " \t");
-        while (token && i < 1023)
+        while (token != NULL && i < 1023)
         {
-            argv[i++] = token;
+            args[i++] = token;
             token = strtok(NULL, " \t");
         }
-        argv[i] = NULL;
+        args[i] = NULL;
 
-        if (!argv[0])
+        if (args[0] == NULL)
             continue;
 
-        /* --- Builtins --- */
-        if (strcmp(argv[0], "exit") == 0)
+        /* --- builtins --- */
+        if (strcmp(args[0], "exit") == 0)
         {
             int status = 0;
-            if (argv[1])
+            if (args[1] != NULL)
             {
-                if (!is_number(argv[1]))
+                if (!is_number(args[1]))
                 {
-                    fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
+                    fprintf(stderr, "exit: %s: numeric argument required\n", args[1]);
                     free(line);
                     exit(2);
                 }
-                status = parse_exit_status(argv[1]);
+                status = parse_exit_status(args[1]);
             }
             free(line);
             exit(status);
         }
-        else if (strcmp(argv[0], "cd") == 0)
+        else if (strcmp(args[0], "cd") == 0)
         {
-            char *dir = argv[1];
+            char *dir = args[1];
             if (!dir)
                 dir = getenv("HOME");
-
             if (!dir || chdir(dir) != 0)
                 perror("cd");
             continue;
@@ -201,32 +205,32 @@ int main(void)
         pid = fork();
         if (pid == -1)
         {
-            perror("./hsh");
+            perror(argv0);
             continue;
         }
         else if (pid == 0)
         {
             char *cmd_path;
-
             signal(SIGINT, SIG_DFL);
 
-            if (strchr(argv[0], '/'))
+            if (strchr(args[0], '/'))
             {
-                execve(argv[0], argv, environ);
-                perror(argv[0]);
+                execve(args[0], args, environ);
+                perror(args[0]);
                 _exit(errno_to_exit(errno));
             }
 
-            cmd_path = find_in_path(argv[0]);
+            cmd_path = find_in_path(args[0]);
             if (cmd_path)
             {
-                execve(cmd_path, argv, environ);
-                perror(argv[0]);
+                execve(cmd_path, args, environ);
+                perror(args[0]);
                 free(cmd_path);
                 _exit(errno_to_exit(errno));
             }
 
-            fprintf(stderr, "%s: not found\n", argv[0]);
+            /* pas trouvé dans PATH */
+            fprintf(stderr, "%s: %d: %s: not found\n", argv0, line_number, args[0]);
             _exit(127);
         }
         else
