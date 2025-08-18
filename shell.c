@@ -201,7 +201,7 @@ int main(void)
                 _exit(errno_to_exit(errno));
             }
             /* pas trouvé dans PATH */
-            fprintf(stderr, "%s: command not found\n", argv[0]);
+            fprintf(stderr, "%s: not found\n", argv[0]);
             _exit(127);
         }
         else
