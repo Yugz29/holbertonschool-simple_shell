@@ -21,11 +21,11 @@ char *find_in_path(const char *cmd)
     char full_path[1024];
 
     if (!path_env)
-        return NULL;
+        return (NULL);
 
     path_copy = strdup(path_env);
     if (!path_copy)
-        return NULL;
+        return (NULL);
 
     dir = strtok(path_copy, ":");
     while (dir)
@@ -34,23 +34,42 @@ char *find_in_path(const char *cmd)
         if (access(full_path, X_OK) == 0)
         {
             free(path_copy);
-            return strdup(full_path); /* <- malloc */
+            return (strdup(full_path));
         }
         dir = strtok(NULL, ":");
     }
     free(path_copy);
-    return NULL;
+    return (NULL);
 }
 
 /**
  * handle_sigint - ignore Ctrl+C dans le shell
+ * @sig: signal number
  */
 void handle_sigint(int sig)
 {
     (void)sig;
-    write(STDOUT_FILENO, "\n#cisfun$ ", 10);
+    write(STDOUT_FILENO, "\n$ ", 3);
 }
 
+/**
+ * print_env - prints environment variables
+ */
+void print_env(void)
+{
+    int i = 0;
+
+    while (environ[i])
+    {
+        printf("%s\n", environ[i]);
+        i++;
+    }
+}
+
+/**
+ * main - main function of simple shell
+ * Return: 0 on success
+ */
 int main(void)
 {
     char *line = NULL;
@@ -59,30 +78,34 @@ int main(void)
     pid_t pid;
     char *token;
     char *argv[1024];
-    int i;
+    int i, status;
     char *cmd_path = NULL;
+    int interactive;
 
-
-    /* Ignorer Ctrl+C dans le shell parent */
+    interactive = isatty(STDIN_FILENO);
     signal(SIGINT, handle_sigint);
 
     while (1)
     {
-        if (isatty(STDIN_FILENO))
+        if (interactive)
         {
-            printf("#cisfun$ ");
-            fflush(stdout);
+            write(STDOUT_FILENO, "$ ", 2);
         }
 
         read = getline(&line, &len, stdin);
         if (read == -1)
         {
-            if (isatty(STDIN_FILENO))
-                putchar('\n');
+            if (interactive)
+                write(STDOUT_FILENO, "\n", 1);
             break;
         }
+
         if (read > 0 && line[read - 1] == '\n')
             line[read - 1] = '\0';
+
+        /* Skip empty lines */
+        if (strlen(line) == 0)
+            continue;
 
         i = 0;
         token = strtok(line, " \t");
@@ -96,62 +119,67 @@ int main(void)
         if (argv[0] == NULL)
             continue;
 
-        /* --- Commandes internes --- */
+        /* Built-in: exit */
         if (strcmp(argv[0], "exit") == 0)
         {
+            int exit_status = 0;
+            if (argv[1])
+                exit_status = atoi(argv[1]);
             free(line);
-            exit(0);
+            exit(exit_status);
         }
-        else if (strcmp(argv[0], "cd") == 0)
+
+        /* Built-in: env */
+        if (strcmp(argv[0], "env") == 0)
         {
-            char *dir = argv[1];
-
-            if (!dir)
-                dir = getenv("HOME"); /* cd sans argument => HOME */
-
-            if (!dir || chdir(dir) != 0)
-                perror("cd");
-
-            continue; /* on ne fork pas pour cd */
+            print_env();
+            continue;
         }
 
+        /* Find command path */
         if (strchr(argv[0], '/'))
-            cmd_path = argv[0];
+        {
+            cmd_path = strdup(argv[0]);
+        }
         else
+        {
             cmd_path = find_in_path(argv[0]);
+        }
 
         if (!cmd_path)
         {
-            fprintf(stderr, "%s: command not found\n", argv[0]);
-            continue; /* pas de fork */
+            fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
+            continue;
         }
 
-        /* --- Fork pour exécuter les autres commandes --- */
+        /* Fork and execute */
         pid = fork();
         if (pid == -1)
         {
-            perror("./shell");
+            perror("fork");
+            free(cmd_path);
             continue;
         }
         else if (pid == 0)
         {
-            /* Restaurer le comportement normal de Ctrl+C dans l’enfant */
+            /* Child process */
             signal(SIGINT, SIG_DFL);
-            execve(cmd_path, argv, environ);
-            perror(argv[0]);
-            if (cmd_path != argv[0])
+            
+            if (execve(cmd_path, argv, environ) == -1)
+            {
+                fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
                 free(cmd_path);
-            exit(EXIT_FAILURE);
+                exit(127);
+            }
         }
         else
         {
-            if (waitpid(pid, NULL, 0) == -1)
-                perror("waitpid");
-            if (cmd_path != argv[0])
-                free(cmd_path);
+            /* Parent process */
+            waitpid(pid, &status, 0);
+            free(cmd_path);
         }
     }
 
     free(line);
-    return 0;
+    return (0);
 }
