@@ -8,6 +8,7 @@
 #include <signal.h>
 
 extern char **environ;
+int interactive = 0;
 
 /**
  * find_in_path - cherche un exécutable dans $PATH
@@ -49,7 +50,8 @@ char *find_in_path(const char *cmd)
 void handle_sigint(int sig)
 {
     (void)sig;
-    write(STDOUT_FILENO, "\n$ ", 3);
+    if (interactive)
+        write(STDOUT_FILENO, "\n$ ", 3);
 }
 
 /**
@@ -80,7 +82,6 @@ int main(void)
     char *argv[1024];
     int i, status;
     char *cmd_path = NULL;
-    int interactive;
 
     interactive = isatty(STDIN_FILENO);
     signal(SIGINT, handle_sigint);
@@ -149,6 +150,11 @@ int main(void)
         if (!cmd_path)
         {
             fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
+            if (!interactive)
+            {
+                free(line);
+                exit(127);
+            }
             continue;
         }
 
