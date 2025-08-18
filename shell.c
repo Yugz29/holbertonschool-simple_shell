@@ -12,8 +12,6 @@ int interactive = 0;
 
 /**
  * find_in_path - cherche un exécutable dans $PATH
- * @cmd: nom de la commande
- * Return: chemin complet (malloc) ou NULL
  */
 char *find_in_path(const char *cmd)
 {
@@ -22,11 +20,11 @@ char *find_in_path(const char *cmd)
     char full_path[1024];
 
     if (!path_env)
-        return (NULL);
+        return NULL;
 
     path_copy = strdup(path_env);
     if (!path_copy)
-        return (NULL);
+        return NULL;
 
     dir = strtok(path_copy, ":");
     while (dir)
@@ -35,17 +33,16 @@ char *find_in_path(const char *cmd)
         if (access(full_path, X_OK) == 0)
         {
             free(path_copy);
-            return (strdup(full_path));
+            return strdup(full_path);
         }
         dir = strtok(NULL, ":");
     }
     free(path_copy);
-    return (NULL);
+    return NULL;
 }
 
 /**
- * handle_sigint - ignore Ctrl+C dans le shell
- * @sig: signal number
+ * handle_sigint - Ignore Ctrl+C dans le shell parent
  */
 void handle_sigint(int sig)
 {
@@ -55,22 +52,19 @@ void handle_sigint(int sig)
 }
 
 /**
- * print_env - prints environment variables
+ * print_env - Affiche les variables d'environnement
  */
 void print_env(void)
-{
-    int i = 0;
 
-    while (environ[i])
-    {
-        printf("%s\n", environ[i]);
-        i++;
-    }
+{
+    int i;
+    
+    for (i = 0; environ[i]; i++)
+        puts(environ[i]);
 }
 
 /**
- * main - main function of simple shell
- * Return: 0 on success
+ * main - Point d'entrée du shell
  */
 int main(void)
 {
@@ -89,9 +83,7 @@ int main(void)
     while (1)
     {
         if (interactive)
-        {
             write(STDOUT_FILENO, "$ ", 2);
-        }
 
         read = getline(&line, &len, stdin);
         if (read == -1)
@@ -108,16 +100,17 @@ int main(void)
         if (strlen(line) == 0)
             continue;
 
+        /* Tokenization */
         i = 0;
         token = strtok(line, " \t");
-        while (token != NULL && i < 1023)
+        while (token && i < 1023)
         {
             argv[i++] = token;
             token = strtok(NULL, " \t");
         }
         argv[i] = NULL;
 
-        if (argv[0] == NULL)
+        if (!argv[0])
             continue;
 
         /* Built-in: exit */
@@ -137,15 +130,11 @@ int main(void)
             continue;
         }
 
-        /* Find command path */
+        /* Command path resolution */
         if (strchr(argv[0], '/'))
-        {
             cmd_path = strdup(argv[0]);
-        }
         else
-        {
             cmd_path = find_in_path(argv[0]);
-        }
 
         if (!cmd_path)
         {
@@ -158,7 +147,7 @@ int main(void)
             continue;
         }
 
-        /* Fork and execute */
+        /* Fork and exec */
         pid = fork();
         if (pid == -1)
         {
@@ -168,24 +157,19 @@ int main(void)
         }
         else if (pid == 0)
         {
-            /* Child process */
             signal(SIGINT, SIG_DFL);
-            
-            if (execve(cmd_path, argv, environ) == -1)
-            {
-                fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
-                free(cmd_path);
-                exit(127);
-            }
+            execve(cmd_path, argv, environ);
+            fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
+            free(cmd_path);
+            exit(127);
         }
         else
         {
-            /* Parent process */
             waitpid(pid, &status, 0);
             free(cmd_path);
         }
     }
 
     free(line);
-    return (0);
+    return 0;
 }
