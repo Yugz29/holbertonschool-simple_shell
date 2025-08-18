@@ -112,6 +112,18 @@ int main(void)
 
             continue; /* on ne fork pas pour cd */
         }
+        char *cmd_path = NULL;
+
+        if (strchr(argv[0], '/'))
+            cmd_path = argv[0];
+        else
+            cmd_path = find_in_path(argv[0]);
+
+        if (!cmd_path)
+        {
+            fprintf(stderr, "%s: command not found\n", argv[0]);
+            continue; /* pas de fork */
+        }
 
         /* --- Fork pour exécuter les autres commandes --- */
         pid = fork();
@@ -126,32 +138,18 @@ int main(void)
 
             /* Restaurer le comportement normal de Ctrl+C dans l’enfant */
             signal(SIGINT, SIG_DFL);
-
-            if (strchr(argv[0], '/'))
-            {
-                execve(argv[0], argv, environ);
-                perror(argv[0]);
-            }
-            else
-            {
-                cmd_path = find_in_path(argv[0]);
-                if (cmd_path)
-                {
-                    execve(cmd_path, argv, environ);
-                    perror(argv[0]);
-                    free(cmd_path);
-                }
-                else
-                {
-                    fprintf(stderr, "%s: command not found\n", argv[0]);
-                }
-            }
+            execve(cmd_path, argv, environ);
+            perror(argv[0]);
+            if (cmd_path != argv[0])
+                free(cmd_path);
             exit(EXIT_FAILURE);
         }
         else
         {
             if (waitpid(pid, NULL, 0) == -1)
                 perror("waitpid");
+            if (cmd_path != argv[0])
+                free(cmd_path);
         }
     }
 
