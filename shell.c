@@ -98,7 +98,7 @@ int main(void)
         if (strcmp(argv[0], "exit") == 0)
         {
             free(line);
-            exit(status);
+            exit(0);
         }
         else if (strcmp(argv[0], "cd") == 0)
         {
