@@ -60,6 +60,8 @@ int main(void)
     char *token;
     char *argv[1024];
     int i;
+    char *cmd_path = NULL;
+
 
     /* Ignorer Ctrl+C dans le shell parent */
     signal(SIGINT, handle_sigint);
@@ -112,7 +114,6 @@ int main(void)
 
             continue; /* on ne fork pas pour cd */
         }
-        char *cmd_path = NULL;
 
         if (strchr(argv[0], '/'))
             cmd_path = argv[0];
@@ -134,8 +135,6 @@ int main(void)
         }
         else if (pid == 0)
         {
-            char *cmd_path = NULL;
-
             /* Restaurer le comportement normal de Ctrl+C dans l’enfant */
             signal(SIGINT, SIG_DFL);
             execve(cmd_path, argv, environ);
