@@ -8,11 +8,16 @@
 
 extern char **environ;
 
+/**
+ * find_in_path - cherche un exécutable dans $PATH
+ * @cmd: nom de la commande
+ * Return: chemin complet (malloc) ou NULL
+ */
 char *find_in_path(const char *cmd)
 {
     char *path_env = getenv("PATH");
     char *path_copy, *dir;
-    static char full_path[1024];
+    char full_path[1024];
 
     if (!path_env)
         return NULL;
@@ -28,7 +33,7 @@ char *find_in_path(const char *cmd)
         if (access(full_path, X_OK) == 0)
         {
             free(path_copy);
-            return full_path;
+            return strdup(full_path); /* <- malloc ici */
         }
         dir = strtok(NULL, ":");
     }
@@ -75,6 +80,25 @@ int main(void)
         if (argv[0] == NULL)
             continue;
 
+        /* --- Commandes internes --- */
+        if (strcmp(argv[0], "exit") == 0)
+        {
+            break; /* quitte la boucle principale */
+        }
+        else if (strcmp(argv[0], "cd") == 0)
+        {
+            if (argv[1] == NULL)
+            {
+                fprintf(stderr, "cd: missing argument\n");
+            }
+            else if (chdir(argv[1]) != 0)
+            {
+                perror("cd");
+            }
+            continue; /* on ne fork pas pour cd */
+        }
+
+        /* --- Fork pour exécuter les autres commandes --- */
         pid = fork();
         if (pid == -1)
         {
@@ -88,6 +112,7 @@ int main(void)
             if (strchr(argv[0], '/'))
             {
                 execve(argv[0], argv, environ);
+                perror(argv[0]); /* affiche la vraie erreur */
             }
             else
             {
@@ -95,9 +120,14 @@ int main(void)
                 if (cmd_path)
                 {
                     execve(cmd_path, argv, environ);
+                    perror(argv[0]);
+                    free(cmd_path);
+                }
+                else
+                {
+                    fprintf(stderr, "%s: command not found\n", argv[0]);
                 }
             }
-            fprintf(stderr, "%s: command not found\n", argv[0]);
             exit(EXIT_FAILURE);
         }
         else
