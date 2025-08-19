@@ -9,219 +9,81 @@
 
 extern char **environ;
 
-/* --- Protos --- */
-char *find_in_path(const char *cmd);
-int  is_number(const char *s);
-int  parse_exit_status(const char *s);
-int  errno_to_exit(int err);
+char *find_in_path(const char *cmd) {
+    char *path = getenv("PATH"), *copy, *dir, full[1024];
+    if (!path || !(copy = strdup(path))) return NULL;
 
-/**
- * find_in_path - cherche un exécutable dans $PATH
- * @cmd: nom de la commande
- * Return: chemin complet (malloc) ou NULL
- */
-char *find_in_path(const char *cmd)
-{
-    char *path_env = getenv("PATH");
-    char *path_copy, *dir;
-    char full_path[1024];
-
-    if (!path_env || *path_env == '\0')
-        return NULL;
-
-    path_copy = strdup(path_env);
-    if (!path_copy)
-        return NULL;
-
-    dir = strtok(path_copy, ":");
-    while (dir)
-    {
-        if (dir[0] == '\0')
-            snprintf(full_path, sizeof(full_path), "./%s", cmd);
-        else
-            snprintf(full_path, sizeof(full_path), "%s/%s", dir, cmd);
-
-        if (access(full_path, X_OK) == 0)
-        {
-            char *res = strdup(full_path);
-            free(path_copy);
-            return res; /* malloc */
+    for (dir = strtok(copy, ":"); dir; dir = strtok(NULL, ":")) {
+        snprintf(full, sizeof(full), "%s/%s", *dir ? dir : ".", cmd);
+        if (!access(full, X_OK)) {
+            free(copy);
+            return strdup(full);
         }
-        dir = strtok(NULL, ":");
     }
-    free(path_copy);
+    free(copy);
     return NULL;
 }
 
-int is_number(const char *s)
-{
-    const char *p = s;
-    if (!s || *s == '\0')
-        return 0;
-
-    if (*p == '+' || *p == '-')
-        p++;
-
-    if (*p == '\0')
-        return 0;
-
-    while (*p)
-    {
-        if (*p < '0' || *p > '9')
-            return 0;
-        p++;
-    }
-    return 1;
+int errno_to_exit(int err) {
+    return (err == ENOENT) ? 127 : 126;
 }
 
-int parse_exit_status(const char *s)
-{
-    long val = 0;
-    int neg = 0;
-
-    if (!s)
-        return 0;
-
-    if (*s == '-')
-    {
-        neg = 1;
-        s++;
-    }
-    else if (*s == '+')
-    {
-        s++;
-    }
-
-    while (*s)
-    {
-        val = val * 10 + (*s - '0');
-        s++;
-    }
-
-    if (neg)
-        val = -val;
-
-    return (unsigned char)val;
-}
-
-int errno_to_exit(int err)
-{
-    if (err == ENOENT)
-        return 2;
-    if (err == EACCES || err == EPERM)
-        return 126;
-    return 126;
-}
-
-int main(void)
-{
-    char *line = NULL;
+int main(void) {
+    char *line = NULL, *argv[1024], *tok;
     size_t len = 0;
-    ssize_t readn;
+    ssize_t n;
     pid_t pid;
-    char *token;
-    char *argv[1024];
-    int i;
 
     signal(SIGINT, SIG_IGN);
 
-    while (1)
-    {
-        if (isatty(STDIN_FILENO))
-        {
-            printf("#cisfun$ ");
-            fflush(stdout);
-        }
+    while (1) {
+        if (isatty(STDIN_FILENO)) printf("#cisfun$ "), fflush(stdout);
 
-        readn = getline(&line, &len, stdin);
-        if (readn == -1)
-        {
-            if (isatty(STDIN_FILENO))
-                putchar('\n');
+        if ((n = getline(&line, &len, stdin)) == -1) {
+            if (isatty(STDIN_FILENO)) putchar('\n');
             break;
         }
+        if (n > 0 && line[n-1] == '\n') line[n-1] = 0;
 
-        if (readn > 0 && line[readn - 1] == '\n')
-            line[readn - 1] = '\0';
-
-        i = 0;
-        token = strtok(line, " \t");
-        while (token != NULL && i < 1023)
-        {
-            argv[i++] = token;
-            token = strtok(NULL, " \t");
-        }
+        int i = 0;
+        for (tok = strtok(line, " \t"); tok && i < 1023; tok = strtok(NULL, " \t"))
+            argv[i++] = tok;
         argv[i] = NULL;
+        if (!argv[0]) continue;
 
-        if (argv[0] == NULL)
-            continue;
-
-        if (strcmp(argv[0], "exit") == 0)
-        {
+        /* builtins */
+        if (!strcmp(argv[0], "exit")) {
             int status = 0;
-
-            if (argv[1] != NULL)
-            {
-                if (!is_number(argv[1]))
-                {
+            if (argv[1]) {
+                char *end; long v = strtol(argv[1], &end, 10);
+                if (*end) {
                     fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
-                    free(line);
-                    exit(2);
+                    free(line); exit(2);
                 }
-                status = parse_exit_status(argv[1]);
+                status = (unsigned char)v;
             }
-            free(line);
-            exit(status);
+            free(line); exit(status);
         }
-        else if (strcmp(argv[0], "cd") == 0)
-        {
-            char *dir = argv[1];
-            if (!dir)
-                dir = getenv("HOME");
-            if (!dir || chdir(dir) != 0)
-                perror("cd");
+        if (!strcmp(argv[0], "cd")) {
+            if (chdir(argv[1] ? argv[1] : getenv("HOME"))) perror("cd");
             continue;
         }
 
-        pid = fork();
-        if (pid == -1)
-        {
-            perror("./hsh");
-            continue;
-        }
-        else if (pid == 0)
-        {
-            char *cmd_path;
-
+        /* exec */
+        if ((pid = fork()) == -1) { perror("./hsh"); continue; }
+        if (!pid) {
             signal(SIGINT, SIG_DFL);
-
-            if (strchr(argv[0], '/'))
-            {
+            if (strchr(argv[0], '/')) {
                 execve(argv[0], argv, environ);
-                perror(argv[0]);
-                _exit(errno_to_exit(errno));
+                perror(argv[0]); _exit(errno_to_exit(errno));
             }
-
-            cmd_path = find_in_path(argv[0]);
-            if (cmd_path)
-            {
-                execve(cmd_path, argv, environ);
-                perror(argv[0]);
-                free(cmd_path);
-                _exit(errno_to_exit(errno));
-            }
-
-            fprintf(stderr,"./hsh: 1: %s: not found\n", argv[0]);
+            char *cmd = find_in_path(argv[0]);
+            if (cmd) { execve(cmd, argv, environ); perror(argv[0]); free(cmd); }
+            fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
             _exit(127);
         }
-        else
-        {
-            int wstatus = 0;
-            if (waitpid(pid, &wstatus, 0) == -1)
-                perror("waitpid");
-        }
+        else if (waitpid(pid, NULL, 0) == -1) perror("waitpid");
     }
-
     free(line);
     return 0;
 }
