@@ -1,134 +1,119 @@
-#include "shell.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <signal.h>
 
-#define MAX_ARGS 1024
+extern char **environ;
 
-/* Fonction pour exécuter une commande avec redirections */
-void execute_command(char **argv, int in_fd, int out_fd)
-{
-    pid_t pid = fork();
-    if (pid == 0)
-    {
-        signal(SIGINT, SIG_DFL);
-
-        if (in_fd != STDIN_FILENO) { dup2(in_fd, STDIN_FILENO); close(in_fd); }
-        if (out_fd != STDOUT_FILENO) { dup2(out_fd, STDOUT_FILENO); close(out_fd); }
-
-        if (strchr(argv[0], '/')) execve(argv[0], argv, environ);
-        else
-        {
-            char *cmd_path = find_in_path(argv[0]);
-            if (cmd_path)
-            {
-                execve(cmd_path, argv, environ);
-                free(cmd_path);
-            }
-        }
-        perror(argv[0]);
-        _exit(errno_to_exit(errno));
-    }
-    else if (pid > 0)
-        waitpid(pid, NULL, 0);
-    else
-        perror("fork");
-}
-
-/* Parse line to detect >, <, and |, return argv, in_fd, out_fd, pipe_fd if needed */
-void parse_and_execute(char *line)
-{
-    char *argv[MAX_ARGS], *token;
-    int i = 0, in_fd = STDIN_FILENO, out_fd = STDOUT_FILENO;
-    int pipe_fd[2];
-    char *cmd1[MAX_ARGS], *cmd2[MAX_ARGS];
-    int has_pipe = 0, j;
-
-    /* Tokenize by space */
-    token = strtok(line, " \t");
-    while (token && i < MAX_ARGS-1)
-    {
-        argv[i++] = token;
-        token = strtok(NULL, " \t");
-    }
-    argv[i] = NULL;
-
-    if (!argv[0]) return;
-
-    /* Check built-ins */
-    if (strcmp(argv[0], "exit") == 0)
-    {
-        int status = 0;
-        if (argv[1] && is_number(argv[1])) status = parse_exit_status(argv[1]);
-        else if (argv[1])
-        {
-            fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
-            status = 2;
-        }
-        exit(status);
-    }
-    else if (strcmp(argv[0], "cd") == 0)
-    {
-        char *dir = argv[1] ? argv[1] : getenv("HOME");
-        if (!dir || chdir(dir) != 0) perror("cd");
-        return;
-    }
-
-    /* Check for pipe */
-    for (j = 0; argv[j]; j++)
-    {
-        if (strcmp(argv[j], "|") == 0)
-        {
-            argv[j] = NULL;
-            has_pipe = 1;
-            break;
-        }
-        else if (strcmp(argv[j], ">") == 0)
-        {
-            argv[j] = NULL;
-            out_fd = open(argv[j+1], O_CREAT | O_WRONLY | O_TRUNC, 0644);
-        }
-        else if (strcmp(argv[j], "<") == 0)
-        {
-            argv[j] = NULL;
-            in_fd = open(argv[j+1], O_RDONLY);
-        }
-    }
-
-    if (has_pipe)
-    {
-        for (i = 0; i < j; i++) cmd1[i] = argv[i];
-        cmd1[i] = NULL;
-        for (i = j+1; argv[i]; i++) cmd2[i-j-1] = argv[i];
-        cmd2[i-j-1] = NULL;
-
-        if (pipe(pipe_fd) == -1) { perror("pipe"); return; }
-
-        execute_command(cmd1, in_fd, pipe_fd[1]);
-        close(pipe_fd[1]);
-        execute_command(cmd2, pipe_fd[0], out_fd);
-        close(pipe_fd[0]);
-    }
-    else
-        execute_command(argv, in_fd, out_fd);
-}
+/* --- Prototypes --- */
+char *find_in_path(const char *cmd);
+int errno_to_exit(int err);
 
 int main(void)
 {
-    char *line = NULL;
+    char *line = NULL, *argv[1024], *tok;
     size_t len = 0;
-    ssize_t readn;
+    ssize_t n;
+    pid_t pid;
+    int i;          /* déclaré en haut */
+    int status;     /* pour builtin exit */
+    char *end;      /* pour strtol */
+    long v;         
+    char *cmd;      /* pour exec */
 
     signal(SIGINT, SIG_IGN);
 
     while (1)
     {
-        if (isatty(STDIN_FILENO)) { printf("#cisfun$ "); fflush(stdout); }
+        if (isatty(STDIN_FILENO))
+        {
+            printf("#cisfun$ ");
+            fflush(stdout);
+        }
 
-        readn = getline(&line, &len, stdin);
-        if (readn == -1) { if (isatty(STDIN_FILENO)) putchar('\n'); break; }
+        n = getline(&line, &len, stdin);
+        if (n == -1)
+        {
+            if (isatty(STDIN_FILENO)) putchar('\n');
+            break;
+        }
+        if (n > 0 && line[n - 1] == '\n')
+            line[n - 1] = 0;
 
-        if (readn > 0 && line[readn-1] == '\n') line[readn-1] = '\0';
-        parse_and_execute(line);
+        i = 0;
+        tok = strtok(line, " \t");
+        while (tok && i < 1023)
+        {
+            argv[i++] = tok;
+            tok = strtok(NULL, " \t");
+        }
+        argv[i] = NULL;
+        if (!argv[0])
+            continue;
+
+        /* --- builtins --- */
+        if (!strcmp(argv[0], "exit"))
+        {
+            status = 0;
+            if (argv[1])
+            {
+                v = strtol(argv[1], &end, 10);
+                if (*end)
+                {
+                    fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
+                    free(line);
+                    exit(2);
+                }
+                status = (unsigned char)v;
+            }
+            free(line);
+            exit(status);
+        }
+        if (!strcmp(argv[0], "cd"))
+        {
+            if (chdir(argv[1] ? argv[1] : getenv("HOME")) != 0)
+                perror("cd");
+            continue;
+        }
+
+        /* --- Fork & exec --- */
+        pid = fork();
+        if (pid == -1)
+        {
+            perror("./hsh");
+            continue;
+        }
+        if (pid == 0)
+        {
+            signal(SIGINT, SIG_DFL);
+
+            if (strchr(argv[0], '/'))
+            {
+                execve(argv[0], argv, environ);
+                perror(argv[0]);
+                _exit(errno_to_exit(errno));
+            }
+            cmd = find_in_path(argv[0]);
+            if (cmd)
+            {
+                execve(cmd, argv, environ);
+                perror(argv[0]);
+                free(cmd);
+                _exit(errno_to_exit(errno));
+            }
+            fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
+            _exit(127);
+        }
+        else
+        {
+            if (waitpid(pid, NULL, 0) == -1)
+                perror("waitpid");
+        }
     }
-
     free(line);
     return 0;
 }
