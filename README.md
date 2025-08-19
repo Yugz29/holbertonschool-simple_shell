@@ -109,10 +109,3 @@ write (man 2 write)
 * Redirections (`>`, `<`) and pipes (`|`) not supported.
 * Environment variables cannot be modified.
 * Arguments containing spaces with quotes are not handled.
-
----
-
-## ✍️ Author
-
-* Project completed as part of the **Holberton School / ALX curriculum**
-* Author: Yann Duzelier and Kevin Herisson
