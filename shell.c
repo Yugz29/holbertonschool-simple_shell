@@ -36,7 +36,6 @@ char *find_in_path(const char *cmd)
     dir = strtok(path_copy, ":");
     while (dir)
     {
-        /* entrée vide dans PATH => répertoire courant "." */
         if (dir[0] == '\0')
             snprintf(full_path, sizeof(full_path), "./%s", cmd);
         else
@@ -54,7 +53,6 @@ char *find_in_path(const char *cmd)
     return NULL;
 }
 
-/* renvoie 1 si s est un entier signé valide (optionnel +/-, chiffres), sinon 0 */
 int is_number(const char *s)
 {
     const char *p = s;
@@ -76,7 +74,6 @@ int is_number(const char *s)
     return 1;
 }
 
-/* parse l’argument d’exit : modulo 256 comme les shells */
 int parse_exit_status(const char *s)
 {
     long val = 0;
@@ -104,18 +101,16 @@ int parse_exit_status(const char *s)
     if (neg)
         val = -val;
 
-    /* modulo 256 comme POSIX shells (seulement l’octet bas) */
     return (unsigned char)val;
 }
 
-/* map errno -> code de sortie pour l’enfant après execve raté */
 int errno_to_exit(int err)
 {
     if (err == ENOENT)
-        return 127; /* not found */
+        return 2;
     if (err == EACCES || err == EPERM)
-        return 126; /* permission */
-    return 126;     /* par défaut: non exécutable / autre erreur */
+        return 126;
+    return 126;
 }
 
 int main(void)
@@ -128,7 +123,6 @@ int main(void)
     char *argv[1024];
     int i;
 
-    /* Ignorer Ctrl+C dans le shell parent */
     signal(SIGINT, SIG_IGN);
 
     while (1)
@@ -162,16 +156,14 @@ int main(void)
         if (argv[0] == NULL)
             continue;
 
-        /* --- builtins --- */
         if (strcmp(argv[0], "exit") == 0)
         {
             int status = 0;
-            /* si un argument est donné */
+
             if (argv[1] != NULL)
             {
                 if (!is_number(argv[1]))
                 {
-                    /* style bash: message + code 2 */
                     fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
                     free(line);
                     exit(2);
@@ -191,7 +183,6 @@ int main(void)
             continue;
         }
 
-        /* --- Fork & exec --- */
         pid = fork();
         if (pid == -1)
         {
@@ -202,18 +193,15 @@ int main(void)
         {
             char *cmd_path;
 
-            /* enfant: Ctrl+C tue la commande */
             signal(SIGINT, SIG_DFL);
 
             if (strchr(argv[0], '/'))
             {
                 execve(argv[0], argv, environ);
-                /* si on arrive ici: échec execve */
                 perror(argv[0]);
                 _exit(errno_to_exit(errno));
             }
 
-            /* sinon: chercher dans PATH */
             cmd_path = find_in_path(argv[0]);
             if (cmd_path)
             {
@@ -223,7 +211,6 @@ int main(void)
                 _exit(errno_to_exit(errno));
             }
 
-            /* pas trouvé dans PATH */
             fprintf(stderr,"./hsh: 1: %s: not found\n", argv[0]);
             _exit(127);
         }
