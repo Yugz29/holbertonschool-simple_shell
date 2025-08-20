@@ -109,3 +109,41 @@ write (man 2 write)
 * Redirections (`>`, `<`) and pipes (`|`) not supported.
 * Environment variables cannot be modified.
 * Arguments containing spaces with quotes are not handled.
+
+---
+
+## Flowchart 
+
+## Flowchart simplifié du shell
+
+```mermaid
+flowchart TD
+    A["Start program"] --> B["Initialize variables & signals"]
+    B --> C["Main loop"]
+
+    C --> D{"Interactive stdin?"}
+    D -->|Yes| E["Display prompt '#cisfun$'"]
+    D -->|No| F["No prompt"]
+    E --> G
+    F --> G["Read line with getline"]
+
+    G --> H{"getline returns -1?"}
+    H -->|Yes| I["Handle EOF / break if interactive"]
+    H -->|No| J["Remove final newline & tokenize input"]
+
+    J --> K["Fill argv with tokens"]
+    K --> L{"argv[0] empty?"}
+    L -->|Yes| C
+    L -->|No| M{"Built-in command?"}
+    
+    M -->|exit| N["Convert argv[1] to int if present & exit"]
+    M -->|cd| O["Call chdir(argv[1] or HOME) & handle error"]
+    M -->|other| P["Fork child process"]
+
+    P --> Q{"Fork result?"}
+    Q -->|pid == -1| R["Print error & continue"]
+    Q -->|pid == 0| S["Child: exec command, handle errors"]
+    Q -->|pid > 0| T["Parent: waitpid, handle errors"]
+    R --> C
+    S --> C
+    T --> C
