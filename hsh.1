@@ -1,0 +1,69 @@
+.TH HSH 1 "August 2025" "1.0" "Simple Shell Manual"
+.SH NAME
+hsh \- simple UNIX command interpreter
+.SH SYNOPSIS
+.B hsh
+.RI [ command ... ]
+.SH DESCRIPTION
+The
+.B hsh
+program is a simple UNIX command interpreter written in C.  
+It provides a minimal shell environment with support for:
+.IP \[bu] 2
+Execution of programs from the PATH or with explicit paths.
+.IP \[bu]
+Built-in commands:
+.BR cd ,
+.BR exit .
+.IP \[bu]
+Input and output redirection with
+.BR "<" " and " ">" .
+.IP \[bu]
+Pipes using
+.BR "|" .
+.PP
+The shell ignores
+.B Ctrl+C
+(SIGINT) in the parent process, but forwards it to child processes.
+.SH BUILTINS
+.TP
+.B cd [directory]
+Change the current working directory to
+.I directory
+. If no argument is given, change to
+.BR $HOME .
+.TP
+.B exit [status]
+Exit the shell with the specified numeric
+.I status
+code. If no status is given, exit with 0.  
+If a non-numeric argument is provided, the shell exits with status 2.
+.SH EXAMPLES
+Execute a simple command:
+.PP
+.EX
+hsh$ ls -l
+.EE
+.PP
+Redirect output:
+.PP
+.EX
+hsh$ ls > out.txt
+.EE
+.PP
+Redirect input:
+.PP
+.EX
+hsh$ wc -l < file.txt
+.EE
+.PP
+Use a pipe:
+.PP
+.EX
+hsh$ ls | grep .c
+.EE
+.SH AUTHOR
+Written by Kevin Herisson and Yann Duzelier as part of the Holberton School simple_shell project.
+.SH SEE ALSO
+.BR sh (1),
+.BR bash (1)
