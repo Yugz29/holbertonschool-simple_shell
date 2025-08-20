@@ -114,8 +114,6 @@ write (man 2 write)
 
 ## Flowchart 
 
-## Flowchart simplifié du shell
-
 ```mermaid
 flowchart TD
     A["Start program"] --> B["Initialize variables & signals"]
@@ -147,3 +145,5 @@ flowchart TD
     R --> C
     S --> C
     T --> C
+
+---
