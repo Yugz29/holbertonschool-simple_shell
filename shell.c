@@ -1,14 +1,89 @@
 #include "shell.h"
 
+<<<<<<< HEAD
+=======
+extern char **environ;
+int interactive = 0;
+
+/**
+ * find_in_path - cherche un exécutable dans $PATH
+ * @cmd: nom de la commande
+ * Return: chemin complet (malloc) ou NULL
+ */
+char *find_in_path(const char *cmd)
+{
+    char *path_env = getenv("PATH");
+    char *path_copy, *dir;
+    char full_path[1024];
+
+    if (!path_env)
+        return (NULL);
+
+    path_copy = strdup(path_env);
+    if (!path_copy)
+        return (NULL);
+
+    dir = strtok(path_copy, ":");
+    while (dir)
+    {
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir, cmd);
+        if (access(full_path, X_OK) == 0)
+        {
+            free(path_copy);
+            return (strdup(full_path));
+        }
+        dir = strtok(NULL, ":");
+    }
+    free(path_copy);
+    return (NULL);
+}
+
+/**
+ * handle_sigint - ignore Ctrl+C dans le shell
+ * @sig: signal number
+ */
+void handle_sigint(int sig)
+{
+    (void)sig;
+    if (interactive)
+        write(STDOUT_FILENO, "\n$ ", 3);
+}
+
+/**
+ * print_env - prints environment variables
+ */
+void print_env(void)
+{
+    int i = 0;
+
+    while (environ[i])
+    {
+        printf("%s\n", environ[i]);
+        i++;
+    }
+}
+
+/**
+ * main - main function of simple shell
+ * Return: 0 on success
+ */
+>>>>>>> a41d670 (pull)
 int main(void)
 {
     char *line = NULL, *argv[1024], *tok;
     size_t len = 0;
     ssize_t n;
     pid_t pid;
+<<<<<<< HEAD
     int i;
     int status = 0;
     char *cmd;
+=======
+    char *token;
+    char *argv[1024];
+    int i, status;
+    char *cmd_path = NULL;
+>>>>>>> a41d670 (pull)
 
     signal(SIGINT, SIG_IGN);
 
@@ -67,7 +142,32 @@ int main(void)
             continue;
         }
 
+<<<<<<< HEAD
         /* --- Fork & exec --- */
+=======
+        /* Find command path */
+        if (strchr(argv[0], '/'))
+        {
+            cmd_path = strdup(argv[0]);
+        }
+        else
+        {
+            cmd_path = find_in_path(argv[0]);
+        }
+
+        if (!cmd_path)
+        {
+            fprintf(stderr, "./hsh: 1: %s: not found\n", argv[0]);
+            if (!interactive)
+            {
+                free(line);
+                exit(127);
+            }
+            continue;
+        }
+
+        /* Fork and execute */
+>>>>>>> a41d670 (pull)
         pid = fork();
         if (pid == -1)
         {
