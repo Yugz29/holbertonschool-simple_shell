@@ -117,5 +117,5 @@ int main(void)
     }
 
     free(line);
-    return ((status >> 8) & 0xFF);
+    return status;
 }
